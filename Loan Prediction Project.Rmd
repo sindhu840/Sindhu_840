@@ -1,0 +1,506 @@
+---
+title: "LOAN PREDICTION - PROJECT"
+author: "Sindhu Kuruba"
+date: "2024-04-16"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r}
+data<-read.csv("C:/Users/Sindhu/Downloads/Loan_Train.csv",head=TRUE,stringsAsFactors = TRUE)
+head(data)
+str(data)
+```
+
+```{r}
+# DATA CLEANING:
+
+data<-data[,-1]
+
+data$Dependents <- ifelse(data$Dependents == "3+", 3, data$Dependents)
+
+
+# Check for missing values
+sum(is.na(data))
+
+# Removing rows with missing values
+data <- na.omit(data)
+data$LoanAmount[is.na(data$LoanAmount)] <- mean(data$LoanAmount, na.rm = TRUE)
+library(plyr)
+
+dim(data)
+sum(is.na(data))
+```
+
+
+
+```{r}
+
+duplicated_rows <- duplicated(data)
+duplicates <- data[duplicated_rows, ]
+duplicates
+
+data<-data[-470,]
+
+dim(data)
+
+head(data)
+```
+
+
+
+
+```{r}
+str(data)
+any(is.na(data))
+
+```
+
+```{r}
+data$Gender <- as.factor(data$Gender)
+data$Married <- as.factor(data$Married)
+data$Education <- as.factor(data$Education)
+data$Self_Employed <- as.factor(data$Self_Employed)
+data$Property_Area <- as.factor(data$Property_Area)
+data$Loan_Status <- as.factor(data$Loan_Status)
+
+
+table(data$Credit_History)
+data$Credit_History <- as.factor(data$Credit_History)
+
+
+
+table(data$Loan_Amount_Term) # Mostly all are 360 the column can be dropped 
+data <- data[, -which(names(data) == "Loan_Amount_Term")]
+
+
+```
+
+```{r}
+
+data$yes <- ifelse(data$Loan_Status=="Y",1,0)
+data <- data[, -which(names(data) == "Loan_Status")]
+head(data)
+data$yes <- as.factor(data$yes)
+
+data$ApplicantIncome <- as.numeric(data$ApplicantIncome)
+str(data)
+any(is.na(data))
+```
+
+```{r}
+library(ggplot2)
+# Define your data frame
+library(ggplot2)
+library(GGally)
+
+ggpairs(data)
+
+numeric_columns <- sapply(data, is.numeric)
+
+ggpairs(data[, numeric_columns])
+```
+
+
+
+
+```{r}
+
+library(ggplot2)
+ggplot(data=data, aes(x=LoanAmount, fill=Education)) +
+  geom_density() +
+  facet_grid(Education~.)
+```
+
+
+
+```{r}
+par(mfrow=c(2,3))
+counts <- table(data$yes, data$Gender)
+barplot(counts, main="Loan Status by Gender",
+        xlab="Gender", col=c("darkgrey","maroon"),
+        legend = rownames(counts))
+counts2 <- table(data$yes, data$Education)
+barplot(counts2, main="Loan Status by Education",
+        xlab="Education", col=c("darkgrey","maroon"),
+        legend = rownames(counts2))
+counts3 <- table(data$yes, data$Married)
+barplot(counts3, main="Loan Status by Married",
+        xlab="Married", col=c("darkgrey","maroon"),
+        legend = rownames(counts3))
+counts4 <- table(data$yes, data$Self_Employed)
+barplot(counts4, main="Loan Status by Self Employed",
+        xlab="Self_Employed", col=c("darkgrey","maroon"),
+        legend = rownames(counts4))
+counts5 <- table(data$yes, data$Property_Area)
+barplot(counts5, main="Loan Status by Property_Area",
+        xlab="Property_Area", col=c("darkgrey","maroon"),
+        legend = rownames(counts5))
+counts6 <- table(data$yes, data$Credit_History)
+barplot(counts6, main="Loan Status by Credit_History",
+        xlab="Credit_History", col=c("darkgrey","maroon"),
+        legend = rownames(counts5))
+```
+
+
+```{r}
+str(data)
+any(is.na(data))
+
+```
+
+
+
+
+```{r}
+boxplot(data$ApplicantIncome ~ data$yes,
+        data = data,
+        xlab = "Applicant income",
+        ylab = "Loan Status",
+        main = "Box plot applicant income vs Loan Status")
+
+boxplot(data$CoapplicantIncome ~ data$yes,
+        data = data,
+        xlab = "Applicant income",
+        ylab = "Loan Status",
+        main = "Box plot Co applicant income vs Loan Status")
+
+boxplot(data$CoapplicantIncome ~ data$yes,
+        data = data,
+        xlab = "Applicant income",
+        ylab = "Loan Status",
+        main = "Box plot Co applicant income vs Loan Status")
+
+
+
+```
+
+
+```{r}
+library(corrplot)
+numeric_data <- data[sapply(data, is.numeric)]
+cor_matrix <- cor(numeric_data)
+
+# Create a correlation plot
+corrplot(cor_matrix, method = "color", order = "hclust",tl.col = "black", tl.srt = 45, addCoef.col = "black")
+
+
+
+```
+
+
+
+```{r}
+#set.seed(123)  
+#train_index <- sample(1:nrow(data), 0.7 * nrow(data))  # 70% for training
+train_index=0.7 * nrow(data)
+train_data <- data[1:train_index, ]
+test_data <- data[train_index+1:ncol(data), ]
+```
+
+```{r}
+#Logistic Regression
+
+logistic_test<- glm (yes ~ ., data = train_data, family = binomial)
+
+prediction_train <- predict(logistic_test, newdata = train_data[,c(1,2,3,4,5,6,7,8,9,10)] , type = "response")
+prediction_train <- ifelse(prediction_train > 0.5,1,0)
+#prediction_train
+
+confusion_matrix_train <- table(train_data$yes, prediction_train )
+confusion_matrix_train
+
+sensitivity_train <- confusion_matrix_train[2, 2] / sum(confusion_matrix_train[2, ])
+cat("Sensitivity for training data:", sensitivity_train, "\n")
+
+# Calculate Specificity (True Negative Rate)
+specificity_train <- confusion_matrix_train[1, 1] / sum(confusion_matrix_train[1, ])
+cat("Specificity for training data:",specificity_train, "\n")
+
+prediction_test <- predict(logistic_test, newdata = test_data[,c(1,2,3,4,5,6,7,8,9,10)] , type = "response")
+prediction_test <- ifelse(prediction_test > 0.5,1,0)
+#prediction_test
+
+confusion_matrix_test <- table(test_data$yes, prediction_test)
+confusion_matrix_test
+
+sensitivity_test <- confusion_matrix_test[2, 2] / sum(confusion_matrix_test[2, ])
+cat("Sensitivity for test data:", sensitivity_test, "\n")
+
+# Calculate Specificity (True Negative Rate)
+specificity_test <- confusion_matrix_test[1, 1] / sum(confusion_matrix_test[1, ])
+cat("Specificity for test data:",specificity_test, "\n")
+
+
+summary(logistic_test)
+
+```
+
+```{r}
+odds_ratio_credit_history <- exp(coef(logistic_test)['Credit_History1'])
+odds_ratio_credit_history
+
+odds_ratio_ApplicantIncome <- exp(coef(logistic_test)['ApplicantIncome'])
+odds_ratio_ApplicantIncome
+
+odds_ratio_CoapplicantIncome <- exp(coef(logistic_test)['CoapplicantIncome'])
+odds_ratio_CoapplicantIncome
+
+odds_ratio_LoanAmount <- exp(coef(logistic_test)['LoanAmount'])
+odds_ratio_LoanAmount
+
+
+odds_ratio_Property_Area <- exp(coef(logistic_test)['Property_AreaSemiurban'])
+odds_ratio_Property_Area
+
+```
+
+```{r}
+# backward 
+
+bsel<-step(logistic_test,trace=0) 
+formula(bsel)
+summary(bsel)
+```
+
+```{r}
+prediction_train <- predict(bsel, newdata = train_data[,c(1,2,3,4,5,6,7,8,9,10)] , type = "response")
+prediction_train_binary <- ifelse(prediction_train > 0.5,1,0)
+#prediction_train
+
+confusion_matrix_train <- table(train_data$yes, prediction_train_binary )
+confusion_matrix_train
+
+sensitivity_train <- confusion_matrix_train[2, 2] / sum(confusion_matrix_train[2, ])
+cat("Sensitivity for training data:", sensitivity_train, "\n")
+
+# Calculate Specificity (True Negative Rate)
+specificity_train <- confusion_matrix_train[1, 1] / sum(confusion_matrix_train[1, ])
+cat("Specificity for training data:",specificity_train, "\n")
+
+prediction_test <- predict(logistic_test, newdata = test_data[,c(1,2,3,4,5,6,7,8,9,10)] , type = "response")
+prediction_test_binary <- ifelse(prediction_test > 0.5,1,0)
+#prediction_test
+
+confusion_matrix_test <- table(test_data$yes, prediction_test_binary)
+confusion_matrix_test
+
+sensitivity_test <- confusion_matrix_test[2, 2] / sum(confusion_matrix_test[2, ])
+cat("Sensitivity for test data:", sensitivity_test, "\n")
+
+# Calculate Specificity (True Negative Rate)
+specificity_test <- confusion_matrix_test[1, 1] / sum(confusion_matrix_test[1, ])
+cat("Specificity for test data:",specificity_test, "\n")
+
+
+```
+```{r}
+# ROC curve for backward selection 
+#install.packages("pROC")
+library(pROC)
+
+
+train_data$yes <- as.numeric(train_data$yes)
+prediction_train<-as.numeric(prediction_train)
+test_data$yes <- as.numeric(test_data$yes)
+prediction_test<-as.numeric(prediction_test)
+
+roc_curve_train <- roc(train_data$yes, prediction_train )
+roc_curve_test <- roc(test_data$yes, prediction_test )
+
+# Plotting ROC curve
+plot(roc_curve_train, main = "ROC Curve Train", col = "blue")
+#plot(roc_curve_test, main = "ROC Curve Test ", col = "red")
+legend("bottomright", legend = paste("AUC =", round(auc(roc_curve_train), 2)), col = "blue", lty = 1, cex = 0.8)
+#legend("bottomright", legend = paste("AUC =", round(auc(roc_curve_test), 2)), col = "blue", lty = 1, cex = 0.8)
+library(pROC)
+
+auc_value_train <- auc(train_data$yes,prediction_train)
+cat("AUC value training data",auc_value_train)
+
+#auc_value_test <- auc(test_data$yes,prediction_test)
+#cat("AUC value test data",auc_value_test)
+
+```
+
+
+
+```{r}
+odds_ratio_credit_history <- exp(coef(bsel)['Credit_History1'])
+odds_ratio_credit_history
+
+
+odds_ratio_LoanAmount <- exp(coef(bsel)['LoanAmount'])
+odds_ratio_LoanAmount
+
+
+odds_ratio_Property_Area <- exp(coef(bsel)['Property_AreaSemiurban'])
+odds_ratio_Property_Area
+
+```
+
+```{r}
+library(randomForest)
+
+myyes_train<-as.factor(ifelse(train_data$yes==1,0,1))
+myyes_test<-as.factor(ifelse(test_data$yes==1,0,1))
+
+
+rf_model1 <- randomForest(myyes_train ~ ., data = train_data[,-11])
+
+rf_model2 <- randomForest(myyes_train ~ Gender + Education + LoanAmount 
+                          + Credit_History + Property_Area, 
+                          data = train_data[,-11], ntree = 100)
+rf_model3 <- randomForest(myyes_train ~ ApplicantIncome + CoapplicantIncome  
+                          + LoanAmount + Credit_History + Property_Area 
+                          ,data=train_data[,-11])
+
+
+importance <- importance(rf_model1)
+importance
+
+rf_model3
+
+```
+
+
+```{r}
+threshold1 <- function(predict, response) {
+perf <- ROCR::performance(ROCR::prediction(predict, response),
+"sens", "spec")
+df <- data.frame(cut = perf@alpha.values[[1]], sens = perf@x.values[[1]],
+spec = perf@y.values[[1]])
+df[which.max(df$sens + df$spec), "cut"]
+}
+
+
+```
+
+
+```{r}
+
+predictions_train <- predict(rf_model1, newdata = train_data,type="prob")
+predictions_train_binary <- ifelse(predictions_train[,2] > 0.5,1,0)
+cm_train <- table(myyes_train,predictions_train_binary)
+cm_train
+sensitivity_train <- cm_train[2, 2] / sum(cm_train[2, ])
+cat("Sensitivity for train data:", sensitivity_train, "\n")
+specificity_train <- cm_train[1, 1] / sum(cm_train[1, ])
+cat("Specificity for train data:",specificity_train, "\n")
+
+
+
+predictions_test <- predict(rf_model1, newdata = test_data,type="prob")
+predictions_test_binary <- ifelse(predictions_test[,2] > 0.5,1,0)
+cm_test <- table(myyes_test, predictions_test_binary)
+cm_test
+sensitivity_test <- cm_test[2, 2] / sum(cm_test[2, ])
+cat("Sensitivity for test data:", sensitivity_test , "\n")
+specificity_test <- cm_test[1, 1] / sum(cm_test[1, ])
+cat("Specificity for test data:",specificity_test, "\n")
+
+
+
+pred=predict(rf_model1,type = "prob")
+library(ROCR)
+perf = prediction(pred[,2], myyes_train) #prob of predicting yes, target
+# 1. True Positive and Negative Rate
+roc1 = performance(perf,measure = "tpr",x.measure ="fpr")
+# 2. Plot the ROC curve
+plot(roc1,main="ROC Curve for Random Forest - Model 1",col=2,lwd=2,colorize=T)
+abline(a=0,b=1,lwd=2,lty=2,col="gray")
+#3. AUC
+auc1 <- performance(perf, measure = "auc")
+auc_ROCR <- auc1@y.values[[1]]
+print(paste("AUC: ",round(auc_ROCR,4)))
+
+```
+
+
+
+```{r}
+
+predictions_train <- predict(rf_model2, newdata = train_data,type="prob")
+predictions_train_binary <- ifelse(predictions_train[,2] > 0.5,1,0)
+cm_train <- table(myyes_train,predictions_train_binary)
+cm_train
+sensitivity_train <- cm_train[2, 2] / sum(cm_train[2, ])
+cat("Sensitivity for train data:", sensitivity_train, "\n")
+specificity_train <- cm_train[1, 1] / sum(cm_train[1, ])
+cat("Specificity for train data:",specificity_train, "\n")
+
+
+
+predictions_test <- predict(rf_model2, newdata = test_data,type="prob")
+predictions_test_binary <- ifelse(predictions_test[,2] > 0.5,1,0)
+cm_test <- table(myyes_test, predictions_test_binary)
+cm_test
+sensitivity_test <- cm_test[2, 2] / sum(cm_test[2, ])
+cat("Sensitivity for test data:", sensitivity_test , "\n")
+specificity_test <- cm_test[1, 1] / sum(cm_test[1, ])
+cat("Specificity for test data:",specificity_test, "\n")
+
+
+
+pred=predict(rf_model2,type = "prob")
+library(ROCR)
+perf = prediction(pred[,2], myyes_train) #prob of predicting yes, target
+# 1. True Positive and Negative Rate
+roc1 = performance(perf,measure = "tpr",x.measure ="fpr")
+# 2. Plot the ROC curve
+plot(roc1,main="ROC Curve for Random Forest - Model 2 ",col=2,lwd=2,colorize=T)
+abline(a=0,b=1,lwd=2,lty=2,col="gray")
+#3. AUC
+auc1 <- performance(perf, measure = "auc")
+auc_ROCR <- auc1@y.values[[1]]
+print(paste("AUC: ",round(auc_ROCR,4)))
+
+
+```
+
+
+```{r}
+
+predictions_train <- predict(rf_model3, newdata = train_data,type="prob")
+predictions_train_binary <- ifelse(predictions_train[,2] > 0.5,1,0)
+cm_train <- table(myyes_train,predictions_train_binary)
+cm_train
+sensitivity_train <- cm_train[2, 2] / sum(cm_train[2, ])
+cat("Sensitivity for train data:", sensitivity_train, "\n")
+specificity_train <- cm_train[1, 1] / sum(cm_train[1, ])
+cat("Specificity for train data:",specificity_train, "\n")
+
+
+
+predictions_test <- predict(rf_model3, newdata = test_data,type="prob")
+predictions_test_binary <- ifelse(predictions_test[,2] > 0.5,1,0)
+cm_test <- table(myyes_test, predictions_test_binary)
+cm_test
+sensitivity_test <- cm_test[2, 2] / sum(cm_test[2, ])
+cat("Sensitivity for test data:", sensitivity_test , "\n")
+specificity_test <- cm_test[1, 1] / sum(cm_test[1, ])
+cat("Specificity for test data:",specificity_test, "\n")
+
+
+
+pred=predict(rf_model3,type = "prob")
+library(ROCR)
+perf = prediction(pred[,2], myyes_train) #prob of predicting yes, target
+# 1. True Positive and Negative Rate
+roc1 = performance(perf,measure = "tpr",x.measure ="fpr")
+# 2. Plot the ROC curve
+plot(roc1,main="ROC Curve for Random Forest- model 3",col=2,lwd=2,colorize=T)
+abline(a=0,b=1,lwd=2,lty=2,col="gray")
+#3. AUC
+auc1 <- performance(perf, measure = "auc")
+auc_ROCR <- auc1@y.values[[1]]
+print(paste("AUC: ",round(auc_ROCR,4)))
+
+
+```
+
+
+
+
+
